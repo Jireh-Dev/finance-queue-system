@@ -10,9 +10,9 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session || (session.role !== 'STAFF' && session.role !== 'ADMIN')) {
+    if (!session || (session.role !== 'STAFF' && session.role !== 'ADMIN' && session.role !== 'KIOSK')) {
       return NextResponse.json(
-        { error: 'Unauthorized: Only Finance Office Staff or Admin can validate QR codes' },
+        { error: 'Unauthorized: Only Finance Office Staff, Kiosk, or Admin can validate QR codes' },
         { status: 403 }
       );
     }

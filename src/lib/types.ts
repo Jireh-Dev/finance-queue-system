@@ -1,4 +1,4 @@
-export type UserRole = 'STUDENT' | 'PARENT' | 'STAFF' | 'ADMIN';
+export type UserRole = 'STUDENT' | 'PARENT' | 'STAFF' | 'ADMIN' | 'KIOSK';
 
 export type AppointmentStatus =
   | 'PENDING'
