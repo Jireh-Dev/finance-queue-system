@@ -3,7 +3,7 @@ import prisma from '@/lib/db';
 import { verifyPassword, signUserToken, SESSION_COOKIE_OPTIONS } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { loginSchema, formatZodError } from '@/lib/validations';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, checkDistributedRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,19 +39,43 @@ export async function POST(req: NextRequest) {
     }
 
     const { email, password } = validation.data;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Task 3: Distributed Rate-Limiting per targeted account/email across Vercel serverless instances
+    const accountRateLimit = await checkDistributedRateLimit(`auth:${normalizedEmail}`, {
+      limit: 5,
+      windowSeconds: 60,
+    });
+    if (!accountRateLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Too many failed login attempts for this account. Please wait ${accountRateLimit.retryAfterSeconds} seconds before trying again.`,
+          retryAfter: accountRateLimit.retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(accountRateLimit.retryAfterSeconds),
+          },
+        }
+      );
+    }
 
     let user = await prisma.user.findUnique({
       where: { email },
     });
 
-    // Safety fallback: if admin@ua.edu.ph logs into an unseeded production database, auto-provision on-the-fly
-    if (!user && email.toLowerCase() === 'admin@ua.edu.ph' && password === 'Admin@123') {
+    // Safety fallback: if configured admin logs into an unseeded production database, auto-provision on-the-fly
+    const configuredAdminEmail = (process.env.ADMIN_EMAIL || 'admin@ua.edu.ph').toLowerCase().trim();
+    const configuredAdminPassword = process.env.ADMIN_PASSWORD || process.env.INITIAL_ADMIN_PASSWORD || 'Admin@123';
+
+    if (!user && normalizedEmail === configuredAdminEmail && password === configuredAdminPassword) {
       try {
         const { hashPassword } = await import('@/lib/auth');
-        const defaultAdminHash = await hashPassword('Admin@123');
+        const defaultAdminHash = await hashPassword(configuredAdminPassword);
         user = await prisma.user.create({
           data: {
-            email: 'admin@ua.edu.ph',
+            email: configuredAdminEmail,
             passwordHash: defaultAdminHash,
             role: 'ADMIN',
             firstName: 'Finance',
@@ -65,6 +89,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
+      await createAuditLog({
+        action: 'LOGIN_FAILED',
+        details: { key: `auth:${normalizedEmail}`, email: normalizedEmail, reason: 'USER_NOT_FOUND' },
+        ipAddress: ip,
+      });
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -73,6 +102,12 @@ export async function POST(req: NextRequest) {
 
     const isMatch = await verifyPassword(password, user.passwordHash);
     if (!isMatch) {
+      await createAuditLog({
+        userId: user.id,
+        action: 'LOGIN_FAILED',
+        details: { key: `auth:${normalizedEmail}`, email: normalizedEmail, reason: 'INVALID_CREDENTIALS' },
+        ipAddress: ip,
+      });
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
