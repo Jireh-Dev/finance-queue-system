@@ -3,7 +3,7 @@ import nodemailer, { Transporter } from 'nodemailer';
 interface SendNotificationOptions {
   to: string;
   recipientName: string;
-  type: 'BOOKING_CONFIRMATION' | 'QUEUE_CALLED' | 'APPOINTMENT_COMPLETED' | 'APPOINTMENT_CANCELLED';
+  type: 'BOOKING_CONFIRMATION' | 'QUEUE_CALLED' | 'APPOINTMENT_COMPLETED' | 'APPOINTMENT_CANCELLED' | 'SCHEDULE_UPDATED';
   details: {
     purpose?: string;
     appointmentDate?: string;
@@ -100,6 +100,46 @@ export async function sendQueueNotification({
               <h3 style="color: #B45309; margin: 4px 0;">Please Proceed to ${details.counterName || 'Cashier Window'}</h3>
               <p style="color: #475569; margin: 6px 0;">Hello <strong>${recipientName}</strong>, your turn has arrived!</p>
             </div>
+          </div>
+        `;
+        break;
+
+      case 'APPOINTMENT_CANCELLED':
+        subject = `[UA Finance] Appointment Cancelled - ${details.purpose || 'Finance Service'}`;
+        bodyHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #fee2e2; border-radius: 8px;">
+            <div style="text-align: center; margin-bottom: 16px;">
+              <h2 style="color: #991b1b; margin: 0;">University of the Assumption</h2>
+              <p style="color: #64748b; font-size: 13px;">Finance & Accounting Office</p>
+            </div>
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; border-radius: 4px;">
+              <h3 style="color: #991b1b; margin-top: 0;">Appointment Status: Cancelled</h3>
+              <p style="margin: 4px 0;">Hello <strong>${recipientName}</strong>,</p>
+              <p style="margin: 4px 0;">Your appointment scheduled for <strong>${details.appointmentDate || 'N/A'} (${details.timeSlot || ''})</strong> has been cancelled.</p>
+              ${details.remarks ? `<p style="margin: 8px 0; color: #7f1d1d;"><strong>Reason:</strong> ${details.remarks}</p>` : ''}
+            </div>
+            <p style="font-size: 13px; color: #475569; margin-top: 16px;">You may book a new appointment slot through your student dashboard at any time.</p>
+          </div>
+        `;
+        break;
+
+      case 'SCHEDULE_UPDATED':
+        subject = `[UA Finance] Schedule Updated - ${details.purpose || 'Finance Service'}`;
+        bodyHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e7ff; border-radius: 8px;">
+            <div style="text-align: center; margin-bottom: 16px;">
+              <h2 style="color: #003876; margin: 0;">University of the Assumption</h2>
+              <p style="color: #64748b; font-size: 13px;">Finance & Accounting Office</p>
+            </div>
+            <div style="background-color: #eef2ff; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 4px;">
+              <h3 style="color: #1e3a8a; margin-top: 0;">Appointment Rescheduled</h3>
+              <p style="margin: 4px 0;">Hello <strong>${recipientName}</strong>,</p>
+              <p style="margin: 4px 0;">Your appointment details have been updated:</p>
+              <p style="margin: 4px 0;"><strong>New Date:</strong> ${details.appointmentDate || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>New Time Slot:</strong> ${details.timeSlot || 'N/A'}</p>
+              ${details.remarks ? `<p style="margin: 8px 0; color: #1e3a8a;"><strong>Notes:</strong> ${details.remarks}</p>` : ''}
+            </div>
+            <p style="font-size: 13px; color: #475569; margin-top: 16px;">Please use your updated QR ticket from your dashboard when arriving at the counter.</p>
           </div>
         `;
         break;

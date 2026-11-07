@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { broadcastQueueUpdate } from '@/lib/events';
+import { getPHTSlotWindow } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -144,8 +145,66 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Check expiration (expiresAt or appointment date)
+    // 4. Strict Time-Bound QR Code Scanner Validation
+    // A QR code must ONLY be valid during its assigned appointment time window.
+    // Scanning before start time or after end time in PHT must be rejected.
     const now = new Date();
+    const slotWindow = getPHTSlotWindow(appointment.appointmentDate, appointment.timeSlot);
+
+    if (slotWindow) {
+      if (now < slotWindow.startTime) {
+        await createAuditLog({
+          userId: session.id,
+          action: 'TOKEN_VALIDATION_TOO_EARLY',
+          details: {
+            reason: 'Scanned before time window',
+            appointmentId: appointment.id,
+            studentId: appointment.user.studentId,
+            timeSlot: appointment.timeSlot,
+            scheduledStart: slotWindow.startTime.toISOString(),
+            scanTime: now.toISOString(),
+            counterName,
+          },
+          ipAddress: ip,
+        });
+
+        return NextResponse.json(
+          {
+            code: 'TOO_EARLY',
+            error: `Too early. Your appointment window starts at ${slotWindow.startStr}.`,
+            appointment,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (now > slotWindow.endTime) {
+        await createAuditLog({
+          userId: session.id,
+          action: 'TOKEN_VALIDATION_EXPIRED',
+          details: {
+            reason: 'Scanned after time window',
+            appointmentId: appointment.id,
+            studentId: appointment.user.studentId,
+            timeSlot: appointment.timeSlot,
+            scheduledEnd: slotWindow.endTime.toISOString(),
+            scanTime: now.toISOString(),
+            counterName,
+          },
+          ipAddress: ip,
+        });
+
+        return NextResponse.json(
+          {
+            code: 'APPOINTMENT_EXPIRED',
+            error: `Appointment expired. Your scheduled window was ${slotWindow.startStr} - ${slotWindow.endStr}.`,
+            appointment,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     if (appointment.expiresAt && now > appointment.expiresAt) {
       await createAuditLog({
         userId: session.id,

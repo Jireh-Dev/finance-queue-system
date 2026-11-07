@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { queueScanSchema, formatZodError } from '@/lib/validations';
 import { broadcastQueueUpdate } from '@/lib/events';
+import { getPHTSlotWindow } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +94,62 @@ export async function POST(req: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // Strict Time-Bound QR Code Scanner Validation
+    const now = new Date();
+    const slotWindow = getPHTSlotWindow(appointment.appointmentDate, appointment.timeSlot);
+
+    if (slotWindow) {
+      if (now < slotWindow.startTime) {
+        await createAuditLog({
+          userId: session.id,
+          action: 'QR_SCAN_TOO_EARLY',
+          details: {
+            appointmentId: appointment.id,
+            reason: 'Scanned before time window',
+            timeSlot: appointment.timeSlot,
+            scheduledStart: slotWindow.startTime.toISOString(),
+            scanTime: now.toISOString(),
+          },
+          ipAddress,
+        });
+
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'TOO_EARLY',
+            error: `Too early. Your appointment window starts at ${slotWindow.startStr}.`,
+            appointment,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (now > slotWindow.endTime) {
+        await createAuditLog({
+          userId: session.id,
+          action: 'QR_SCAN_EXPIRED',
+          details: {
+            appointmentId: appointment.id,
+            reason: 'Scanned after time window',
+            timeSlot: appointment.timeSlot,
+            scheduledEnd: slotWindow.endTime.toISOString(),
+            scanTime: now.toISOString(),
+          },
+          ipAddress,
+        });
+
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'APPOINTMENT_EXPIRED',
+            error: `Appointment expired. Your scheduled window was ${slotWindow.startStr} - ${slotWindow.endStr}.`,
+            appointment,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     if (appointment.status === 'COMPLETED') {

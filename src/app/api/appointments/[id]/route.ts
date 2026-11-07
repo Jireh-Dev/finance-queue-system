@@ -177,6 +177,47 @@ export async function PATCH(
       queueNumber: updated.queueNumber,
     });
 
+    // Send notifications on schedule modification or cancellation
+    try {
+      if (action === 'CANCEL' || updated.status === 'CANCELLED') {
+        await sendQueueNotification({
+          to: updated.user.email,
+          recipientName: `${updated.user.firstName} ${updated.user.lastName}`,
+          type: 'APPOINTMENT_CANCELLED',
+          details: {
+            purpose: updated.purpose,
+            appointmentDate: new Date(updated.appointmentDate).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            }),
+            timeSlot: updated.timeSlot,
+            remarks: updated.remarks,
+          },
+        });
+      } else if (action === 'RESCHEDULE' || (dataToUpdate.appointmentDate || dataToUpdate.timeSlot)) {
+        await sendQueueNotification({
+          to: updated.user.email,
+          recipientName: `${updated.user.firstName} ${updated.user.lastName}`,
+          type: 'SCHEDULE_UPDATED',
+          details: {
+            purpose: updated.purpose,
+            appointmentDate: new Date(updated.appointmentDate).toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            }),
+            timeSlot: updated.timeSlot,
+            remarks: updated.remarks,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn('Could not dispatch appointment update notification:', notifErr);
+    }
+
     return NextResponse.json({ success: true, appointment: updated });
   } catch (error) {
     console.error('Update appointment error:', error);

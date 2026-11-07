@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Sparkles,
+  User,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -178,9 +179,13 @@ export default function Navbar() {
               <div className="w-24 h-9 bg-blue-800/60 rounded-xl animate-pulse" />
             ) : user ? (
               <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="text-xs font-heading font-bold leading-tight">
-                    {user.firstName} {user.lastName}
+                <Link
+                  href="/profile"
+                  className="text-right group hover:opacity-90 transition p-1 rounded-xl"
+                  title="View Profile Settings"
+                >
+                  <div className="text-xs font-heading font-bold leading-tight group-hover:text-ua-gold-light transition flex items-center justify-end gap-1">
+                    <span>{user.firstName} {user.lastName}</span>
                   </div>
                   <div className="flex items-center justify-end gap-1.5 text-[11px] text-ua-gold-light">
                     <span className="font-semibold uppercase tracking-wider bg-blue-950/60 px-2 py-0.5 rounded">
@@ -190,7 +195,16 @@ export default function Navbar() {
                       <span className="text-blue-200">({user.studentId})</span>
                     )}
                   </div>
-                </div>
+                </Link>
+
+                <Link
+                  href="/profile"
+                  className="min-h-[44px] min-w-[44px] p-2.5 text-blue-200 hover:text-white hover:bg-ua-blue-light rounded-xl transition-colors border border-blue-400/30 cursor-pointer flex items-center justify-center"
+                  title="Account Profile"
+                  aria-label="Account Profile"
+                >
+                  <User className="w-4 h-4" />
+                </Link>
 
                 <button
                   onClick={handleLogout}
@@ -245,13 +259,23 @@ export default function Navbar() {
                   <p className="text-xs text-ua-gold font-medium">{user.studentId}</p>
                 )}
               </div>
-              <button
-                onClick={handleLogout}
-                className="min-h-[44px] flex items-center gap-1.5 px-3.5 py-2 bg-ua-red hover:bg-red-700 text-xs text-white rounded-xl font-bold cursor-pointer transition shadow-sm"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Logout</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="min-h-[44px] flex items-center gap-1.5 px-3 py-2 bg-blue-900/60 hover:bg-blue-800 text-xs text-white rounded-xl font-bold cursor-pointer transition border border-blue-700"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Profile</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="min-h-[44px] flex items-center gap-1.5 px-3.5 py-2 bg-ua-red hover:bg-red-700 text-xs text-white rounded-xl font-bold cursor-pointer transition shadow-sm"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
           )}
 

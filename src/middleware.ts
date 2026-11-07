@@ -76,8 +76,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 3. Protect Student/Parent booking & dashboard: /dashboard and /book
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/book')) {
+  // 3. Protect Student/Parent booking, dashboard & profile: /dashboard, /book, /profile
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/book') || pathname.startsWith('/profile')) {
     if (!user) {
       return clearCookieAndRedirectToLogin();
     }
@@ -127,6 +127,7 @@ export const config = {
     '/kiosk/:path*',
     '/dashboard/:path*',
     '/book/:path*',
+    '/profile/:path*',
     '/login',
     '/register',
   ],
