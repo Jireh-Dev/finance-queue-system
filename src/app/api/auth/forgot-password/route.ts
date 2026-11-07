@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import prisma from '@/lib/db';
+import { getBaseUrl } from '@/lib/app-url';
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,8 +63,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const resetUrl = `${appUrl}/reset-password?token=${token}`;
+    const baseUrl = getBaseUrl(req);
+    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
     const recipientName = `${user.firstName} ${user.lastName}`.trim() || 'User';
 
