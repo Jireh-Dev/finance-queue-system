@@ -39,3 +39,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Database & local sqlite files
+*.db
+*.db-journal
+test-server.js
+.agents/
+

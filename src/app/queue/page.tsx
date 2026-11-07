@@ -124,51 +124,72 @@ export default function PublicLiveQueueBoard() {
 
     safeFetch();
 
-    // Real-Time EventSource (Server-Sent Events) for instant zero-latency updates
+    // Real-Time EventSource (Server-Sent Events) with auto-reconnect and robust 3s polling fallback
     let eventSource: EventSource | null = null;
-    try {
-      eventSource = new EventSource('/api/queue/events');
+    let sseReconnectTimer: NodeJS.Timeout | null = null;
 
-      eventSource.addEventListener('queue-init', (e: MessageEvent) => {
-        if (!isMounted) return;
-        try {
-          const data = JSON.parse(e.data);
-          setQueueData(data);
-          previousServingIdRef.current = data?.nowServing?.id || null;
-        } catch (err) {
-          console.error('Failed to parse queue-init event:', err);
+    const setupSSE = () => {
+      if (!isMounted) return;
+      try {
+        if (eventSource) {
+          eventSource.close();
         }
-      });
+        eventSource = new EventSource('/api/queue/events');
 
-      eventSource.addEventListener('queue-update', (e: MessageEvent) => {
-        if (!isMounted) return;
-        try {
-          const data = JSON.parse(e.data);
-          setQueueData(data);
-
-          const currentServingId = data?.nowServing?.id;
-          if (
-            previousServingIdRef.current &&
-            currentServingId &&
-            previousServingIdRef.current !== currentServingId
-          ) {
-            playCounterChime();
+        eventSource.addEventListener('queue-init', (e: MessageEvent) => {
+          if (!isMounted) return;
+          try {
+            const data = JSON.parse(e.data);
+            setQueueData(data);
+            previousServingIdRef.current = data?.nowServing?.id || null;
+          } catch (err) {
+            console.error('Failed to parse queue-init event:', err);
           }
-          previousServingIdRef.current = currentServingId || null;
-        } catch (err) {
-          console.error('Failed to parse queue-update event:', err);
-        }
-      });
+        });
 
-      eventSource.onerror = () => {
-        // Fallback gracefully to background polling if SSE connection drops
-      };
-    } catch (err) {
-      console.warn('SSE not supported or failed to connect; relying on polling fallback:', err);
-    }
+        eventSource.addEventListener('queue-update', (e: MessageEvent) => {
+          if (!isMounted) return;
+          try {
+            const data = JSON.parse(e.data);
+            setQueueData(data);
 
-    // Safety polling fallback every 6 seconds in case of network reconnection
-    const queueInterval = setInterval(safeFetch, 6000);
+            const currentServingId = data?.nowServing?.id;
+            if (
+              previousServingIdRef.current &&
+              currentServingId &&
+              previousServingIdRef.current !== currentServingId
+            ) {
+              playCounterChime();
+            }
+            previousServingIdRef.current = currentServingId || null;
+          } catch (err) {
+            console.error('Failed to parse queue-update event:', err);
+          }
+        });
+
+        eventSource.onerror = () => {
+          if (!isMounted) return;
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+          // Attempt auto-reconnect after 4s while short-polling keeps data fresh
+          if (!sseReconnectTimer) {
+            sseReconnectTimer = setTimeout(() => {
+              sseReconnectTimer = null;
+              setupSSE();
+            }, 4000);
+          }
+        };
+      } catch (err) {
+        console.warn('SSE not supported or connection dropped; fallback polling active:', err);
+      }
+    };
+
+    setupSSE();
+
+    // High-resilience polling fallback every 3.5 seconds to counter Vercel multi-instance / serverless dropouts
+    const queueInterval = setInterval(safeFetch, 3500);
 
     const updateClock = () => {
       if (!isMounted) return;
@@ -187,6 +208,9 @@ export default function PublicLiveQueueBoard() {
 
     return () => {
       isMounted = false;
+      if (sseReconnectTimer) {
+        clearTimeout(sseReconnectTimer);
+      }
       if (eventSource) {
         eventSource.close();
       }
@@ -336,7 +360,7 @@ export default function PublicLiveQueueBoard() {
                       Q-{item.queueNumber}
                     </div>
                     <div className="font-heading text-lg sm:text-xl font-bold text-ua-gold-light truncate">
-                      {item.user.firstName} {item.user.lastName}
+                      {item.purpose || 'Finance Counter Service'}
                     </div>
                   </div>
 
@@ -389,7 +413,7 @@ export default function PublicLiveQueueBoard() {
                           Queue #{item.queueNumber}
                         </div>
                         <div className="text-[11px] text-slate-400 truncate max-w-[150px]">
-                          {item.user.firstName} {item.user.lastName}
+                          {item.purpose || 'In Line'}
                         </div>
                       </div>
                     </div>

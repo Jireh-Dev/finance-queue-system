@@ -1,14 +1,15 @@
 import { NextRequest } from 'next/server';
 import { queueEvents } from '@/lib/events';
 import prisma from '@/lib/db';
+import { getPHTDayRange } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
 async function getQueueSnapshot() {
-  const today = new Date();
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+  const { startOfDay, endOfDay } = getPHTDayRange();
 
+  // Fetch appointments for today with ONLY non-sensitive queue display fields.
+  // Strictly omit user, studentId, email, fullName, and phone numbers.
   const todayAppointments = await prisma.appointment.findMany({
     where: {
       appointmentDate: {
@@ -16,17 +17,15 @@ async function getQueueSnapshot() {
         lt: endOfDay,
       },
     },
-    include: {
-      user: {
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          studentId: true,
-          role: true,
-        },
-      },
+    select: {
+      id: true,
+      queueNumber: true,
+      status: true,
+      counterName: true,
+      purpose: true,
+      createdAt: true,
+      checkInTime: true,
+      servedTime: true,
     },
     orderBy: [
       { queueNumber: 'asc' },
@@ -35,10 +34,23 @@ async function getQueueSnapshot() {
     ],
   });
 
-  const servingList = todayAppointments.filter((a) => a.status === 'SERVING');
-  const waitingQueue = todayAppointments.filter((a) => a.status === 'CHECKED_IN');
-  const completedList = todayAppointments.filter((a) => a.status === 'COMPLETED');
-  const upcomingToday = todayAppointments.filter((a) => a.status === 'CONFIRMED');
+  const sanitizedAppointments = todayAppointments.map((a) => ({
+    id: a.id,
+    ticketNumber: a.queueNumber ? `Q-${a.queueNumber}` : null,
+    queueNumber: a.queueNumber,
+    status: a.status,
+    counterName: a.counterName,
+    counterNumber: a.counterName ? a.counterName.split('-')[0].trim() : null,
+    purpose: a.purpose,
+    createdAt: a.createdAt,
+    checkInTime: a.checkInTime,
+    servedTime: a.servedTime,
+  }));
+
+  const servingList = sanitizedAppointments.filter((a) => a.status === 'SERVING');
+  const waitingQueue = sanitizedAppointments.filter((a) => a.status === 'CHECKED_IN');
+  const completedList = sanitizedAppointments.filter((a) => a.status === 'COMPLETED');
+  const upcomingToday = sanitizedAppointments.filter((a) => a.status === 'CONFIRMED');
 
   const averageServiceMinutes = 8;
   const estimatedWaitMinutes = waitingQueue.length * averageServiceMinutes;

@@ -3,7 +3,11 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { UserRole, UserSession } from './types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ua-finance-secure-jwt-secret-key-production-ready-2026';
+const rawJwtSecret = process.env.JWT_SECRET;
+if (!rawJwtSecret) {
+  throw new Error("FATAL: JWT_SECRET environment variable is missing.");
+}
+const JWT_SECRET: string = rawJwtSecret;
 const COOKIE_NAME = 'ua_finance_session';
 
 export async function hashPassword(password: string): Promise<string> {

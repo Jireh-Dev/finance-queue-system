@@ -3,6 +3,7 @@ import prisma from '@/lib/db';
 import { getSession } from '@/lib/auth';
 import { createAuditLog } from '@/lib/audit';
 import { broadcastQueueUpdate } from '@/lib/events';
+import { getPHTDayRange } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,9 +21,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results: [] });
     }
 
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    const { startOfDay, endOfDay } = getPHTDayRange();
 
     // Search appointments for today or active appointments matching Student ID or Full Name
     const appointments = await prisma.appointment.findMany({

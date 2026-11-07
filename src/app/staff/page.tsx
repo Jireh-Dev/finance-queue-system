@@ -378,7 +378,7 @@ export default function StaffQueueConsole() {
 
     connectSSE();
 
-    // Fallback polling interval with network health check
+    // High-resilience polling fallback interval (every 4 seconds) to prevent silent data dropouts on Vercel
     const interval = setInterval(async () => {
       if (typeof window !== 'undefined' && !navigator.onLine) {
         if (isMounted) setConnectionStatus('OFFLINE');
@@ -392,7 +392,7 @@ export default function StaffQueueConsole() {
       } catch {
         if (isMounted) setConnectionStatus('RECONNECTING');
       }
-    }, 8000);
+    }, 4000);
 
     return () => {
       isMounted = false;

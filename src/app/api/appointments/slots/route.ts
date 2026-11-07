@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { TIME_SLOTS, MAX_SLOT_CAPACITY } from '@/lib/constants';
+import { getPHTDayRange } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,8 +19,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
     }
 
-    const startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    const { startOfDay, endOfDay } = getPHTDayRange(selectedDate);
 
     // Fetch all active appointments on the given date (excluding CANCELLED)
     const activeAppointments = await prisma.appointment.findMany({

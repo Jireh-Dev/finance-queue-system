@@ -11,16 +11,19 @@ A production-ready, full-stack web application designed for the **University of 
 
 ---
 
-## 🚀 2. Quick Demo Credentials (Pre-Seeded)
+## 🚀 2. System Accounts & Access
 
-| Role | Email | Password | Full Name & Details |
-| :--- | :--- | :--- | :--- |
-| **Student** | `student@ua.edu.ph` | `Student@123` | Juan Dela Cruz (ID: `UA-2024-0891`) |
-| **Parent** | `parent@ua.edu.ph` | `Parent@123` | Maria Santos (Son: Mark Santos) |
-| **Cashier / Staff** | `cashier@ua.edu.ph` | `Cashier@123` | Elena Reyes (Window 1 Cashier) |
-| **Administrator** | `admin@ua.edu.ph` | `Admin@123` | Finance Director |
+Accounts for institutional operations (Administrator, Cashier, Door Kiosk) are provisioned via database seed scripts or the Administration portal.
 
-> **Pro Tip:** The `/login` page includes **One-Click Role Sign-In buttons** for instant switching between roles during demonstration and testing.
+| Role | Default Email | Full Name & Details |
+| :--- | :--- | :--- |
+| **Student** | Registered via `/register` | Self-service registration |
+| **Parent** | Registered via `/register` | Self-service registration |
+| **Cashier / Staff** | `cashier@ua.edu.ph` | Window 1 Cashier |
+| **Door Kiosk** | `kiosk@ua.edu.ph` | Door Scanner Terminal |
+| **Administrator** | `admin@ua.edu.ph` | Finance Director |
+
+> **Note:** Initial passwords should be set via environment variables in production (`INITIAL_ADMIN_PASSWORD`, etc.) or configured securely by the system administrator upon first setup.
 
 ---
 
@@ -77,7 +80,7 @@ A production-ready, full-stack web application designed for the **University of 
 
 * **Framework:** Next.js 14 App Router (React 18, TypeScript)
 * **Styling:** Tailwind CSS with custom UA color extensions
-* **Database & ORM:** Prisma ORM with SQLite (100% self-contained, easily portable to PostgreSQL)
+* **Database & ORM:** Prisma ORM with PostgreSQL (Supabase / serverless compatible)
 * **QR Generation:** `qrcode` high-density SVG/PNG renderer
 * **Icons:** `lucide-react`
 * **Security:** Node `crypto`, `bcryptjs`, `jsonwebtoken`

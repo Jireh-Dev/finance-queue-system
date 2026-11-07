@@ -7,6 +7,7 @@ import { createAppointmentSchema, formatZodError } from '@/lib/validations';
 import { broadcastQueueUpdate } from '@/lib/events';
 import { sendQueueNotification } from '@/lib/notifications';
 import { MAX_SLOT_CAPACITY } from '@/lib/constants';
+import { getPHTDayRange } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,8 +37,7 @@ export async function GET(req: NextRequest) {
     if (date) {
       const targetDate = new Date(date);
       if (!isNaN(targetDate.getTime())) {
-        const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-        const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+        const { startOfDay, endOfDay } = getPHTDayRange(targetDate);
         where.appointmentDate = {
           gte: startOfDay,
           lt: endOfDay,
@@ -103,8 +103,7 @@ export async function POST(req: NextRequest) {
     const { purpose, appointmentDate, timeSlot, remarks } = validation.data;
 
     const apptDate = new Date(appointmentDate);
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const { startOfDay: startOfToday } = getPHTDayRange();
     if (apptDate < startOfToday) {
       return NextResponse.json(
         { error: 'Cannot book appointments for past dates' },
@@ -113,8 +112,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Capacity Check: Ensure selected time slot has not reached MAX_SLOT_CAPACITY
-    const targetStartOfDay = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate());
-    const targetEndOfDay = new Date(targetStartOfDay.getTime() + 24 * 60 * 60 * 1000);
+    const { startOfDay: targetStartOfDay, endOfDay: targetEndOfDay } = getPHTDayRange(apptDate);
 
     const existingCount = await prisma.appointment.count({
       where: {
