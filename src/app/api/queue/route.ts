@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getSession } from '@/lib/auth';
 import { getPHTDayRange } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
@@ -7,9 +8,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const { startOfDay, endOfDay } = getPHTDayRange();
+    const session = await getSession();
+    const isStaffOrAdmin = session?.role === 'STAFF' || session?.role === 'ADMIN';
 
-    // Fetch appointments for today with ONLY non-sensitive queue display fields.
-    // Strictly omit user, studentId, email, fullName, and phone numbers to prevent PII leaks.
+    // Fetch appointments for today.
+    // If request is authenticated as STAFF or ADMIN, include student user details so cashiers can identify the student.
+    // Otherwise, strictly omit user, studentId, email, fullName, and phone numbers to prevent public PII leaks.
     const todayAppointments = await prisma.appointment.findMany({
       where: {
         appointmentDate: {
@@ -26,6 +30,21 @@ export async function GET(req: NextRequest) {
         createdAt: true,
         checkInTime: true,
         servedTime: true,
+        ...(isStaffOrAdmin
+          ? {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  studentId: true,
+                  email: true,
+                  phone: true,
+                  role: true,
+                },
+              },
+            }
+          : {}),
       },
       orderBy: [
         { queueNumber: 'asc' },
@@ -34,8 +53,8 @@ export async function GET(req: NextRequest) {
       ],
     });
 
-    // Map to include ticketNumber / counterNumber compatibility while keeping student identities private
-    const sanitizedAppointments = todayAppointments.map((a) => ({
+    // Map to include ticketNumber / counterNumber compatibility while keeping student identities private for public
+    const sanitizedAppointments = todayAppointments.map((a: any) => ({
       id: a.id,
       ticketNumber: a.queueNumber ? `Q-${a.queueNumber}` : null,
       queueNumber: a.queueNumber,
@@ -46,6 +65,8 @@ export async function GET(req: NextRequest) {
       createdAt: a.createdAt,
       checkInTime: a.checkInTime,
       servedTime: a.servedTime,
+      user: isStaffOrAdmin ? a.user : undefined,
+      studentName: isStaffOrAdmin && a.user ? `${a.user.firstName} ${a.user.lastName}` : undefined,
     }));
 
     const servingList = sanitizedAppointments.filter((a) => a.status === 'SERVING');

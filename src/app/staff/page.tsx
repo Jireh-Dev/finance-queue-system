@@ -764,7 +764,9 @@ export default function StaffQueueConsole() {
                         </span>
                       </div>
                       <div className="font-heading font-bold text-slate-800 text-sm mt-1">
-                        {appt.user.firstName} {appt.user.lastName}
+                        {appt.user?.firstName && appt.user?.lastName
+                          ? `${appt.user.firstName} ${appt.user.lastName}`
+                          : appt.studentName || `Ticket Q-${appt.queueNumber ?? appt.id}`}
                       </div>
                       <div className="text-xs text-slate-600">{appt.purpose}</div>
                     </div>
@@ -819,7 +821,10 @@ export default function StaffQueueConsole() {
                       </span>
                       <div>
                         <div className="font-heading font-bold text-slate-900 text-sm">
-                          Queue #{appt.queueNumber} — {appt.user.firstName} {appt.user.lastName}
+                          Queue #{appt.queueNumber} —{' '}
+                          {appt.user?.firstName && appt.user?.lastName
+                            ? `${appt.user.firstName} ${appt.user.lastName}`
+                            : appt.studentName || 'Student Visitor'}
                         </div>
                         <div className="text-[11px] text-slate-500">
                           {appt.purpose} • Checked-in at{' '}
@@ -866,8 +871,10 @@ export default function StaffQueueConsole() {
 
               <div className="text-xs space-y-1 text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
                 <div>
-                  <strong>Visitor:</strong> {activeActionAppt.user.firstName}{' '}
-                  {activeActionAppt.user.lastName}
+                  <strong>Visitor:</strong>{' '}
+                  {activeActionAppt.user?.firstName && activeActionAppt.user?.lastName
+                    ? `${activeActionAppt.user.firstName} ${activeActionAppt.user.lastName}`
+                    : activeActionAppt.studentName || `Queue #${activeActionAppt.queueNumber}`}
                 </div>
                 <div>
                   <strong>Purpose:</strong> {activeActionAppt.purpose}
@@ -974,9 +981,11 @@ export default function StaffQueueConsole() {
                     >
                       <div>
                         <div className="font-heading font-bold text-slate-900">
-                          {appt.user.firstName} {appt.user.lastName}{' '}
+                          {appt.user?.firstName && appt.user?.lastName
+                            ? `${appt.user.firstName} ${appt.user.lastName}`
+                            : appt.studentName || 'Student Visitor'}{' '}
                           <span className="text-slate-500 font-normal">
-                            ({appt.user.studentId || 'No ID'})
+                            ({appt.user?.studentId || 'No ID'})
                           </span>
                         </div>
                         <div className="text-[11px] text-slate-500">
@@ -1012,7 +1021,11 @@ export default function StaffQueueConsole() {
 
                   <div className="text-xs text-amber-800 space-y-1">
                     <div>
-                      <strong>Student:</strong> {confirmManualAppt.user.firstName} {confirmManualAppt.user.lastName} ({confirmManualAppt.user.studentId || 'N/A'})
+                      <strong>Student:</strong>{' '}
+                      {confirmManualAppt.user?.firstName && confirmManualAppt.user?.lastName
+                        ? `${confirmManualAppt.user.firstName} ${confirmManualAppt.user.lastName}`
+                        : confirmManualAppt.studentName || 'Student Visitor'}{' '}
+                      ({confirmManualAppt.user?.studentId || 'N/A'})
                     </div>
                     <div>
                       <strong>Purpose:</strong> {confirmManualAppt.purpose}
