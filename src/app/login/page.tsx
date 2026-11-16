@@ -64,7 +64,7 @@ export default function LoginPage() {
             />
           </div>
           <h2 className="font-heading text-2xl font-black text-slate-900 tracking-tight">
-            Sign In to Portal
+            Finance Portal
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             University of the Assumption • Finance & Queue System
