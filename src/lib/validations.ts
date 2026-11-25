@@ -58,22 +58,53 @@ export const registerSchema = z.object({
   studentId: z.string().trim().optional().nullable(),
 });
 
-export const createAppointmentSchema = z.object({
-  purpose: z
-    .string()
-    .trim()
-    .min(3, 'Purpose must be at least 3 characters'),
-  appointmentDate: z
-    .string()
-    .refine((dateStr) => !isNaN(Date.parse(dateStr)), {
-      message: 'Invalid appointment date format',
-    }),
-  timeSlot: z
-    .string()
-    .trim()
-    .min(5, 'Invalid time slot'),
-  remarks: z.string().trim().max(500, 'Remarks cannot exceed 500 characters').optional().nullable(),
-});
+export const createAppointmentSchema = z
+  .object({
+    purpose: z
+      .string()
+      .trim()
+      .min(3, 'Purpose must be at least 3 characters')
+      .optional(),
+    purposes: z
+      .array(z.string().trim().min(1))
+      .min(1, 'Please select at least one transaction purpose')
+      .optional(),
+    customPurpose: z
+      .string()
+      .trim()
+      .max(200, 'Custom purpose cannot exceed 200 characters')
+      .optional()
+      .nullable(),
+    appointmentDate: z
+      .string()
+      .refine((dateStr) => !isNaN(Date.parse(dateStr)), {
+        message: 'Invalid appointment date format',
+      }),
+    timeSlot: z
+      .string()
+      .trim()
+      .min(5, 'Invalid time slot'),
+    remarks: z.string().trim().max(500, 'Remarks cannot exceed 500 characters').optional().nullable(),
+  })
+  .refine(
+    (data) => (data.purposes && data.purposes.length > 0) || Boolean(data.purpose),
+    {
+      message: 'Please select at least one transaction purpose',
+      path: ['purposes'],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.purposes?.includes('Others')) {
+        return Boolean(data.customPurpose && data.customPurpose.trim().length > 0);
+      }
+      return true;
+    },
+    {
+      message: 'Please specify your transaction purpose for "Others"',
+      path: ['customPurpose'],
+    }
+  );
 
 export const updateAppointmentSchema = z.object({
   action: z.enum(['CANCEL', 'RESCHEDULE']).optional(),

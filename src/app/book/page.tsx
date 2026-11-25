@@ -14,7 +14,6 @@ import {
   Sparkles,
   ChevronLeft,
   Shield,
-  HelpCircle,
 } from 'lucide-react';
 import { FINANCE_PURPOSES, TIME_SLOTS } from '@/lib/constants';
 import QRModal from '@/components/QRModal';
@@ -25,13 +24,13 @@ export default function BookAppointmentPage() {
   const [loadingUser, setLoadingUser] = useState(true);
 
   // Form states
-  const [purpose, setPurpose] = useState(FINANCE_PURPOSES[0]);
+  const [selectedPurposes, setSelectedPurposes] = useState<string[]>([]);
+  const [customPurpose, setCustomPurpose] = useState('');
   const [appointmentDate, setAppointmentDate] = useState(() => {
     const d = new Date();
     return d.toISOString().split('T')[0];
   });
   const [timeSlot, setTimeSlot] = useState(TIME_SLOTS[2]); // 09:00 AM - 09:30 AM
-  const [remarks, setRemarks] = useState('');
 
   // Slot Capacity Tracking
   const [slotCapacities, setSlotCapacities] = useState<Record<string, { bookedCount: number; maxCapacity: number; availableSlots: number; isFull: boolean }>>({});
@@ -89,9 +88,27 @@ export default function BookAppointmentPage() {
       .finally(() => setLoadingUser(false));
   }, [router]);
 
+  const togglePurpose = (item: string) => {
+    setSelectedPurposes((prev) =>
+      prev.includes(item) ? prev.filter((p) => p !== item) : [...prev, item]
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (selectedPurposes.length === 0) {
+      setError('Please select at least one transaction purpose.');
+      return;
+    }
+
+    const isOthersSelected = selectedPurposes.includes('Others');
+    if (isOthersSelected && !customPurpose.trim()) {
+      setError('Please specify your transaction purpose for "Others".');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -99,10 +116,10 @@ export default function BookAppointmentPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          purpose,
+          purposes: selectedPurposes,
+          customPurpose: isOthersSelected ? customPurpose.trim() : undefined,
           appointmentDate,
           timeSlot,
-          remarks,
         }),
       });
 
@@ -267,28 +284,51 @@ export default function BookAppointmentPage() {
             <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8">
               {/* Step 1: Purpose Selection */}
               <div className="space-y-3">
-                <label className="block text-xs font-heading font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-ua-blue" />
-                  <span>1. Select Transaction Purpose</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {FINANCE_PURPOSES.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => setPurpose(item)}
-                      className={`min-h-[44px] p-3 text-left rounded-xl border text-xs font-medium transition-all flex items-start justify-between gap-2 cursor-pointer ${purpose === item
-                          ? 'bg-blue-50/80 border-ua-blue text-ua-blue font-bold shadow-sm ring-2 ring-ua-blue'
-                          : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                    >
-                      <span>{item}</span>
-                      {purpose === item && (
-                        <CheckCircle2 className="w-4 h-4 text-ua-blue shrink-0 mt-0.5" />
-                      )}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-heading font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-ua-blue" />
+                    <span>1. Select Transaction Purpose(s)</span>
+                  </label>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Select one or more
+                  </span>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {[...FINANCE_PURPOSES, 'Others'].map((item) => {
+                    const isSelected = selectedPurposes.includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => togglePurpose(item)}
+                        className={`min-h-[44px] p-3 text-left rounded-xl border text-xs font-medium transition-all flex items-start justify-between gap-2 cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-50/80 border-ua-blue text-ua-blue font-bold shadow-sm ring-2 ring-ua-blue'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{item}</span>
+                        {isSelected && (
+                          <CheckCircle2 className="w-4 h-4 text-ua-blue shrink-0 mt-0.5" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedPurposes.includes('Others') && (
+                  <div className="pt-1">
+                    <input
+                      type="text"
+                      required
+                      value={customPurpose}
+                      onChange={(e) => setCustomPurpose(e.target.value)}
+                      placeholder="Please specify your transaction purpose..."
+                      maxLength={200}
+                      className="min-h-[44px] w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-ua-blue"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Step 2: Date Selection */}
@@ -366,20 +406,6 @@ export default function BookAppointmentPage() {
                     );
                   })}
                 </div>
-              </div>
-
-              {/* Step 4: Remarks / Notes */}
-              <div className="space-y-2">
-                <label className="block text-xs font-heading font-bold text-slate-800 uppercase tracking-wider">
-                  4. Additional Notes / Particulars (Optional)
-                </label>
-                <textarea
-                  rows={3}
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="e.g. Paying 2nd installment for 1st Term BS Nursing, claiming graduation clearance..."
-                  className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-ua-blue"
-                />
               </div>
 
               {/* Submit CTA */}

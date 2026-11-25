@@ -100,7 +100,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(formatZodError(validation.error), { status: 400 });
     }
 
-    const { purpose, appointmentDate, timeSlot, remarks } = validation.data;
+    const { purpose, purposes, customPurpose, appointmentDate, timeSlot, remarks } = validation.data;
+
+    // Format single or multiple selected purposes (including custom "Others") as a comma-separated string
+    const formattedPurpose =
+      purposes && purposes.length > 0
+        ? purposes
+            .map((item) => (item === 'Others' ? customPurpose?.trim() || '' : item.trim()))
+            .filter(Boolean)
+            .join(', ')
+        : purpose!;
 
     const apptDate = new Date(appointmentDate);
     const { startOfDay: startOfToday } = getPHTDayRange();
@@ -145,7 +154,7 @@ export async function POST(req: NextRequest) {
     const appointment = await prisma.appointment.create({
       data: {
         userId: session.id,
-        purpose,
+        purpose: formattedPurpose,
         appointmentDate: apptDate,
         timeSlot,
         status: 'CONFIRMED',
